@@ -1,0 +1,21 @@
+# Helm related
+charts/*.tgz
+charts/*/charts/*.tgz
+charts/*/charts/*/charts/*.tgz
+charts/*/charts/*/charts/*/charts/*.tgz
+charts/*/charts/*/charts/*/charts/*/charts/*.tgz
+
+# Helm secret values
+*values.secret.yaml
+secrets.yaml
+
+# Temp Files
+*.swp
+*.swo
+
+# IDE related
+.idea/
+.vscode/
+
+# Template Test Files
+template*.yaml
