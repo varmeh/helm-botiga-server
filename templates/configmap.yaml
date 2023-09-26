@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helm-botiga-backend.fullname" . }}
+data:
+  # Environment variables for the NodeJS application
+  NODE_ENV: {{ .Values.configmap.nodeEnv | quote }}
+  PORT: {{ .Values.configmap.port | quote }}
+  DD_LOGS_ENABLED: {{ .Values.configmap.ddLogsEnabled | default "false" | quote }}
+  EMAIL_NOTIFICATONS_ENABLED: {{ .Values.configmap.emailNotificationsEnabled | default "false" | quote }}
+

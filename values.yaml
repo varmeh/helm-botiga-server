@@ -80,3 +80,9 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+configmap:
+  nodeEnv: development
+  port: 3000
+  ddLogsEnabled: true
+  emailNotificationsEnabled: true
