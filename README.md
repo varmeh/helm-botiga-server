@@ -10,6 +10,9 @@
       - [App Secrets](#app-secrets)
       - [Verifying Secrets](#verifying-secrets)
     - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
+    - [Install Chart](#install-chart)
+    - [Upgrading Chart](#upgrading-chart)
+    - [Uninstall Chart](#uninstall-chart)
   - [Debug Installation](#debug-installation)
 
 ## Debug Templates
@@ -126,6 +129,26 @@ kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-t
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "/etc/firebase-sdk/firebase-sdk.json"
     ```
+
+### Install Chart
+
+```bash
+helm install prod .
+```
+
+### Upgrading Chart
+
+```bash
+helm upgrade prod .
+```
+
+### Uninstall Chart
+
+```bash
+helm uninstall prod
+```
+
+- [Helm Cheat Sheet](https://helm.sh/docs/intro/cheatsheet/)
 
 ## Debug Installation
 
