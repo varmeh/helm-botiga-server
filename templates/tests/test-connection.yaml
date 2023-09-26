@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "helm-botiga-backend.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "helm-botiga-backend.fullname" . }}:{{ .Values.deployment.service.port }}']
   restartPolicy: Never

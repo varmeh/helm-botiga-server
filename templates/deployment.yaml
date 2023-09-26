@@ -20,7 +20,7 @@ spec:
       labels:
         {{- include "helm-botiga-backend.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- with .Values.deployment.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -31,19 +31,19 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          image: "{{ .Values.deployment.image.repository }}:{{ .Values.deployment.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.deployment.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.deployment.service.port }}
               protocol: TCP
           livenessProbe:
             httpGet:
-              path: /
+              path: {{ .Values.deployment.probe.liveness.path }}
               port: http
           readinessProbe:
             httpGet:
-              path: /
+              path: {{ .Values.deployment.probe.readiness.path }}
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
