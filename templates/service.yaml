@@ -11,5 +11,8 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+      {{- if eq .Values.deployment.service.type "NodePort" }}
+      nodePort: {{ .Values.deployment.service.nodePort }}
+      {{- end }}
   selector:
     {{- include "helm-botiga-backend.selectorLabels" . | nindent 4 }}

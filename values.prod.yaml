@@ -21,9 +21,8 @@ serviceAccount:
 
 deployment:
   service:
-    type: NodePort
+    type: ClusterIP
     port: 80
-    nodePort: 30000
   probe:
     liveness:
       path: /api/live
@@ -45,9 +44,9 @@ deployment:
     - name: PORT
       value: "80"
     - name: DD_LOGS_ENABLED
-      value: "false"
+      value: "true"
     - name: EMAIL_NOTIFICATONS_ENABLED
-      value: "false"
+      value: "true"
     - name: DD_API_KEY
       valueFrom:
         secretKeyRef:
