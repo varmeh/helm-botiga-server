@@ -48,7 +48,24 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
-            {{- toYaml .Values.deployment.env | nindent 12 }} 
+            {{- if .Values.deployment.env }}
+              {{- toYaml .Values.deployment.env | nindent 12 }}
+            {{- end }}
+            {{- if .Values.deployment.analytics.firebase }}
+            - name: {{ .Values.deployment.analytics.firebase.appVariableName }}
+              value: {{ printf "%s/%s.json" .Values.deployment.analytics.firebase.mountPath .Values.deployment.analytics.firebase.secret | quote }} 
+            {{- end }}
+          volumeMounts:
+          {{- if .Values.deployment.analytics.firebase }}
+            - name: {{ .Values.deployment.analytics.firebase.secret }}-volume
+              mountPath: "/mnt/app/credentials"
+          {{- end }}
+      volumes:
+        {{- if .Values.deployment.analytics.firebase }}
+        - name: {{ .Values.deployment.analytics.firebase.secret }}-volume
+          secret:
+            secretName: {{ .Values.deployment.analytics.firebase.secret }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -9,6 +9,7 @@
       - [Docker Registry Secret](#docker-registry-secret)
       - [App Secrets](#app-secrets)
       - [Verifying Secrets](#verifying-secrets)
+      - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
 
 ## Debug Templates
 
@@ -40,7 +41,7 @@ kubectl create namespace prod-botiga-backend
 kubectl config set-context --current --namespace=prod-botiga-backend
 ```
 
-**OR**
+- **OR**
 
 - Add `-n prod-botiga-backend` to access the resources in the namespace
 
@@ -83,3 +84,47 @@ kubectl describe secrets app-secrets
 kubectl get secret docker-registry-secret -o jsonpath="{.data.\.dockerconfigjson}" | base64 --decode
 kubectl get secret app-secrets -o jsonpath="{.data.NODE_ENV}" | base64 --decode
 ```
+
+#### Mounting Firebase SDK File
+
+- Firebase SDK File is required to access Firebase Services from the application
+- As it a JSON file, it need to be `mount as a volume` & the path of the volume should be set as our `GOOGLE_APPLICATION_CREDENTIALS` environment variable
+- To mount this file, `Create a Secret from JSON File`:
+  
+```bash
+kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-to-firebase-sdk-json-file>
+```
+
+- Please ensure that the variable name in secret is `firebase-sdk.json` as it is referenced in the deployment template
+
+- Accessing in Template:
+
+`Note`: Following 2 code pieces are already embedded in deployment template & are here only for clarity:
+
+1. Mount the Secret as a Volume in a Pod:
+
+    ```yaml
+      apiVersion: apps/v1
+      kind: Deployment
+      spec:
+        template:
+          spec:
+            containers:
+            - name: my-nodejs-container
+              image: my-nodejs-image
+              volumeMounts:
+              - name: firebase-sdk-volume
+                mountPath: "/etc/firebase-sdk"
+            volumes:
+            - name: firebase-sdk-volume
+              secret:
+                secretName: firebase-sdk
+    ```
+
+2. Set variable Path to this file:
+
+    ```yaml
+      env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/etc/firebase-sdk/firebase-sdk.json"
+    ```

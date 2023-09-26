@@ -129,6 +129,14 @@ deployment:
         secretKeyRef:
           name: app-secret
           key: TINY_PNG_SECRET
+
+  analytics:  
+    firebase:
+      secret: firebase-sdk
+      mountPath: /mnt/app/credentials
+      appVariableName: GOOGLE_APPLICATION_CREDENTIALS
+
+      
 podAnnotations: {}
 
 podSecurityContext: {}
