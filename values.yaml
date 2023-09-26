@@ -37,8 +37,98 @@ deployment:
   
   imagePullSecrets:
     - name: docker-registry-secret
-
-
+  
+  env:
+    - name: NODE_ENV
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: NODE_ENV
+    - name: PORT
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: PORT
+    - name: DD_LOGS_ENABLED
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: DD_LOGS_ENABLED      
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: DD_API_KEY
+    - name: EMAIL_NOTIFICATONS_ENABLED
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: EMAIL_NOTIFICATONS_ENABLED 
+    - name: JWT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: JWT_SECRET
+    - name: ENCRYPTION_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: ENCRYPTION_SECRET
+    - name: DB_CONNECTION_STRING
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: DB_CONNECTION_STRING
+    - name: AWS_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: AWS_ACCESS_KEY
+    - name: AWS_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: AWS_SECRET_KEY
+    - name: AWS_REGION
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: AWS_REGION
+    - name: AWS_BUCKET_NAME
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: AWS_BUCKET_NAME
+    - name: OTP_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: OTP_API_KEY
+    - name: RPAY_HOST
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: RPAY_HOST
+    - name: RPAY_ID
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: RPAY_ID
+    - name: RPAY_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: RPAY_SECRET
+    - name: RPAY_WEBHOOK_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: RPAY_WEBHOOK_SECRET
+    - name: TINY_PNG_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: TINY_PNG_SECRET
 podAnnotations: {}
 
 podSecurityContext: {}
@@ -94,7 +184,3 @@ tolerations: []
 affinity: {}
 
 configmap:
-  nodeEnv: development
-  port: 3000
-  ddLogsEnabled: true
-  emailNotificationsEnabled: true

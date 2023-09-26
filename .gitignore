@@ -7,7 +7,7 @@ charts/*/charts/*/charts/*/charts/*/charts/*.tgz
 
 # Helm secret values
 *values.secret.yaml
-secrets.yaml
+*secrets.yaml
 
 # Temp Files
 *.swp
@@ -16,6 +16,9 @@ secrets.yaml
 # IDE related
 .idea/
 .vscode/
+
+# Env Values
+.env*
 
 # Template Test Files
 template*.yaml

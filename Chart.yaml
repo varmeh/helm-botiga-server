@@ -1,6 +1,6 @@
 apiVersion: v2
-name: botiga-server
-description: A Helm chart for Botiga Backend Server
+name: botiga-backend
+description: A Helm chart for Botiga Backend
 
 # A chart can be either an 'application' or a 'library' chart.
 #
