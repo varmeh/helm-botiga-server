@@ -41,10 +41,14 @@ spec:
             httpGet:
               path: {{ .Values.deployment.probe.liveness.path }}
               port: http
+            initialDelaySeconds: {{ .Values.deployment.probe.liveness.initialDelaySeconds }} 
+            periodSeconds: {{ .Values.deployment.probe.liveness.periodSeconds }} 
           readinessProbe:
             httpGet:
               path: {{ .Values.deployment.probe.readiness.path }}
               port: http
+            initialDelaySeconds: {{ .Values.deployment.probe.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.deployment.probe.readiness.periodSeconds }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:

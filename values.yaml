@@ -27,9 +27,12 @@ deployment:
   probe:
     liveness:
       path: /api/live
+      initialDelaySeconds: 10
+      periodSeconds: 10
     readiness:
       path: /api/live
-
+      initialDelaySeconds: 10
+      periodSeconds: 10
   image:
     repository: varunbotiga/botiga-server
     pullPolicy: IfNotPresent
@@ -73,11 +76,11 @@ deployment:
         secretKeyRef:
           name: app-secret
           key: AWS_ACCESS_KEY
-    - name: AWS_SECRET_KEY
+    - name: AWS_ACCESS_SECRET
       valueFrom:
         secretKeyRef:
           name: app-secret
-          key: AWS_SECRET_KEY
+          key: AWS_ACCESS_SECRET
     - name: AWS_REGION
       valueFrom:
         secretKeyRef:

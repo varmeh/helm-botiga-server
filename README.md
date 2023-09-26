@@ -2,14 +2,15 @@
 
 - [Helm Chart for Botiga Backend](#helm-chart-for-botiga-backend)
   - [Debug Templates](#debug-templates)
-  - [Installation Steps](#installation-steps)
+  - [Installation](#installation)
     - [Create the namespace](#create-the-namespace)
-    - [Default Namespace](#default-namespace)
+    - [Set Default Namespace](#set-default-namespace)
     - [Create Secrets](#create-secrets)
       - [Docker Registry Secret](#docker-registry-secret)
       - [App Secrets](#app-secrets)
       - [Verifying Secrets](#verifying-secrets)
-      - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
+    - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
+  - [Debug Installation](#debug-installation)
 
 ## Debug Templates
 
@@ -22,7 +23,7 @@ helm template prod . --debug > templates.yaml
 - This will dump the template manifests into a file called `templates.yaml` in the current directory
 - You can then use this file to debug the templates
 
-## Installation Steps
+## Installation
 
 ### Create the namespace
 
@@ -33,23 +34,20 @@ helm template prod . --debug > templates.yaml
 kubectl create namespace prod-botiga-backend
 ```
 
-### Default Namespace
+### Set Default Namespace
 
-- Set above created namespace as default namespace for the current context
+- This steps is optional
+- It simply avoids the need of adding `-n prod-botiga-backend` to every `kubectl` command
 
 ```bash
 kubectl config set-context --current --namespace=prod-botiga-backend
 ```
 
-- **OR**
-
-- Add `-n prod-botiga-backend` to access the resources in the namespace
-
 ### Create Secrets
 
 #### Docker Registry Secret
 
-- Secret for pulling images from docker registry
+- Secret for pulling images from docker registry of type - `docker-registry`
 
 ```bash
 kubectl create secret docker-registry docker-registry-secret \
@@ -61,11 +59,11 @@ kubectl create secret docker-registry docker-registry-secret \
 
 #### App Secrets
 
-- Upload app confidential information from `.env` file to a secret
+- Upload app confidential information from `.env` file to a secret of type - `generic`
 - This approach gives us flexibility to set custom secret values based on environments
 
 ```bash
-kubectl create secret generic app-secrets --from-env-file=.env
+kubectl create secret generic app-secret --from-env-file=.env
 ```
 
 #### Verifying Secrets
@@ -85,7 +83,7 @@ kubectl get secret docker-registry-secret -o jsonpath="{.data.\.dockerconfigjson
 kubectl get secret app-secrets -o jsonpath="{.data.NODE_ENV}" | base64 --decode
 ```
 
-#### Mounting Firebase SDK File
+### Mounting Firebase SDK File
 
 - Firebase SDK File is required to access Firebase Services from the application
 - As it a JSON file, it need to be `mount as a volume` & the path of the volume should be set as our `GOOGLE_APPLICATION_CREDENTIALS` environment variable
@@ -128,3 +126,41 @@ kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-t
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "/etc/firebase-sdk/firebase-sdk.json"
     ```
+
+## Debug Installation
+
+- Check all the resouces created:
+
+```bash
+kubectl get all
+```
+
+- You can also check the status of the pods:
+
+```bash
+kubectl get pods
+```
+
+- Describe Pod for details:
+
+```bash
+kubectl describe pod <pod-name>
+```
+
+- Check the logs of the pod:
+
+```bash
+kubectl logs <pod-name>
+```
+
+- Check 1st 100 lines of logs:
+
+```bash
+kubectl logs [POD_NAME] | head -n 100
+```
+
+- Access Shell of the Container
+
+```bash
+kubectl exec -it <pod_name> -n -- /bin/sh
+```
