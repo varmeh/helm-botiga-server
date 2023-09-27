@@ -136,6 +136,8 @@ kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-t
 helm install prod .
 ```
 
+- If installation is successful and `service.type` is `NodePort`, then, service for Docker-Desktop could be tested at `http://localhost:<node-port>`
+
 ### Upgrading Chart
 
 ```bash
