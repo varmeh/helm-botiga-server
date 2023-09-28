@@ -12,6 +12,8 @@
     - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
     - [Install Chart](#install-chart)
     - [Upgrading Chart](#upgrading-chart)
+    - [Install Chart with Ingress](#install-chart-with-ingress)
+      - [Local Installation](#local-installation)
     - [Uninstall Chart](#uninstall-chart)
   - [Debug Installation](#debug-installation)
 
@@ -143,6 +145,31 @@ helm install prod .
 ```bash
 helm upgrade prod .
 ```
+
+### Install Chart with Ingress
+
+- There are 2 major ingresses available:
+
+| Ingress Name               | Description                                              | URL                                                      | Cost                    |
+|----------------------------|----------------------------------------------------------|----------------------------------------------------------|-------------------------|
+| Kubernetes/ingress-nginx   | Open Source Ingress managed by K8s Community.            | [Link](https://github.com/kubernetes/ingress-nginx)      | Totally Free            |
+| Nginx-Ingress              | From Nginx Inc. Free with limited features.              | [Link](https://docs.nginx.com/nginx-ingress-controller)  | Free (Limited) / Nginx+ |
+
+- Going with `Kubernetes/ingress-nginx`, as it's easier to deploy
+
+- To enable installation, set `ingress.enabled` to `true` in `values.yaml`
+- Ingress-nginx Chart has been added as a dependency to our chart, so, it will be installed automatically
+- Routes to it could be configured in `ingress.hosts` in `values.yaml`
+
+#### Local Installation
+
+- To test it on local machine, you need to add the following entry to your `/etc/hosts` file:
+
+```bash
+127.0.0.1 chart.local
+```
+
+- Chart.local is your defined `ingress.hosts[0].host` url in value.yaml file
 
 ### Uninstall Chart
 
