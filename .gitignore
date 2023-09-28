@@ -20,5 +20,5 @@ charts/*/charts/*/charts/*/charts/*/charts/*.tgz
 # Env Values
 .env*
 
-# Template Test Files
-template*.yaml
+# Temp Folder
+tmp/
