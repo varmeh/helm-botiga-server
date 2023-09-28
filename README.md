@@ -3,17 +3,21 @@
 - [Helm Chart for Botiga Backend](#helm-chart-for-botiga-backend)
   - [Debug Templates](#debug-templates)
   - [Installation](#installation)
-    - [Create the namespace](#create-the-namespace)
-    - [Set Default Namespace](#set-default-namespace)
-    - [Create Secrets](#create-secrets)
-      - [Docker Registry Secret](#docker-registry-secret)
-      - [App Secrets](#app-secrets)
-      - [Verifying Secrets](#verifying-secrets)
-    - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
-    - [Install Chart](#install-chart)
-    - [Upgrading Chart](#upgrading-chart)
-    - [Install Chart with Ingress](#install-chart-with-ingress)
-      - [Local Installation](#local-installation)
+    - [Common Steps](#common-steps)
+      - [Create Namespace](#create-namespace)
+      - [Set Default Namespace](#set-default-namespace)
+      - [Create Secrets](#create-secrets)
+        - [Docker Registry Secret](#docker-registry-secret)
+        - [App Secrets](#app-secrets)
+        - [Verifying Secrets](#verifying-secrets)
+        - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
+    - [Install App with a NodePort Service](#install-app-with-a-nodeport-service)
+    - [Install App with Ingress](#install-app-with-ingress)
+      - [Modifications in `values.yaml`](#modifications-in-valuesyaml)
+      - [Types of Installation](#types-of-installation)
+        - [Isolated Ingress Controller](#isolated-ingress-controller)
+        - [Shared Ingress Controller](#shared-ingress-controller)
+        - [Ingress Controller Overview](#ingress-controller-overview)
     - [Uninstall Chart](#uninstall-chart)
   - [Debug Installation](#debug-installation)
 
@@ -30,7 +34,9 @@ helm template prod . --debug > templates.yaml
 
 ## Installation
 
-### Create the namespace
+### Common Steps
+
+#### Create Namespace
 
 - As this cluster could be used for multiple applications with different environments, please create a namespace for the application
 - Nomenclature the namespace as `<env>-<app-name>`
@@ -39,7 +45,7 @@ helm template prod . --debug > templates.yaml
 kubectl create namespace prod-botiga-backend
 ```
 
-### Set Default Namespace
+#### Set Default Namespace
 
 - This steps is optional
 - It simply avoids the need of adding `-n prod-botiga-backend` to every `kubectl` command
@@ -48,9 +54,9 @@ kubectl create namespace prod-botiga-backend
 kubectl config set-context --current --namespace=prod-botiga-backend
 ```
 
-### Create Secrets
+#### Create Secrets
 
-#### Docker Registry Secret
+##### Docker Registry Secret
 
 - Secret for pulling images from docker registry of type - `docker-registry`
 
@@ -62,7 +68,7 @@ kubectl create secret docker-registry docker-registry-secret \
   --docker-email=varun@botiga.app
 ```
 
-#### App Secrets
+##### App Secrets
 
 - Upload app confidential information from `.env` file to a secret of type - `generic`
 - This approach gives us flexibility to set custom secret values based on environments
@@ -71,7 +77,7 @@ kubectl create secret docker-registry docker-registry-secret \
 kubectl create secret generic app-secret --from-env-file=.env
 ```
 
-#### Verifying Secrets
+##### Verifying Secrets
 
 - To verify the secrets, you can use the following command:
 
@@ -88,7 +94,7 @@ kubectl get secret docker-registry-secret -o jsonpath="{.data.\.dockerconfigjson
 kubectl get secret app-secrets -o jsonpath="{.data.NODE_ENV}" | base64 --decode
 ```
 
-### Mounting Firebase SDK File
+##### Mounting Firebase SDK File
 
 - Firebase SDK File is required to access Firebase Services from the application
 - As it a JSON file, it need to be `mount as a volume` & the path of the volume should be set as our `GOOGLE_APPLICATION_CREDENTIALS` environment variable
@@ -132,7 +138,22 @@ kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-t
           value: "/etc/firebase-sdk/firebase-sdk.json"
     ```
 
-### Install Chart
+---
+
+### Install App with a NodePort Service
+
+- *Recommnended only for your local environment*  
+- Set following values in your `values.yaml` file:
+
+```yaml
+deployment:
+  service:
+    type: NodePort
+    port: 80
+    nodePort: 30000
+```
+
+- Then, install the chart:
 
 ```bash
 helm install prod .
@@ -140,13 +161,9 @@ helm install prod .
 
 - If installation is successful and `service.type` is `NodePort`, then, service for Docker-Desktop could be tested at `http://localhost:<node-port>`
 
-### Upgrading Chart
+---
 
-```bash
-helm upgrade prod .
-```
-
-### Install Chart with Ingress
+### Install App with Ingress
 
 - There are 2 major ingresses available:
 
@@ -155,21 +172,103 @@ helm upgrade prod .
 | Kubernetes/ingress-nginx   | Open Source Ingress managed by K8s Community.            | [Link](https://github.com/kubernetes/ingress-nginx)      | Totally Free            |
 | Nginx-Ingress              | From Nginx Inc. Free with limited features.              | [Link](https://docs.nginx.com/nginx-ingress-controller)  | Free (Limited) / Nginx+ |
 
-- Going with `Kubernetes/ingress-nginx`, as it's easier to deploy
+- Going with `Kubernetes/ingress-nginx`, as it's free & does not require any additional setup
 
-- To enable installation, set `ingress.enabled` to `true` in `values.yaml`
-- Ingress-nginx Chart has been added as a dependency to our chart, so, it will be installed automatically
+#### Modifications in `values.yaml`
+
+```yaml
+deployment:
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+```
+
+- Change `service.type` to `ClusterIP` and remove `nodePort` as it is not required for ingress
+- Set `ingress.enabled` to `true` to enable ingress
 - Routes to it could be configured in `ingress.hosts` in `values.yaml`
-
-#### Local Installation
-
+- This will install an `ingress resource` which specifies the routes to the application
 - To test it on local machine, you need to add the following entry to your `/etc/hosts` file:
 
 ```bash
 127.0.0.1 chart.local
 ```
 
-- Chart.local is your defined `ingress.hosts[0].host` url in value.yaml file
+- Chart.local is your defined `ingress.hosts[0].host` url in values.yaml file
+- Post the changes, follow the [commons steps](#common-steps)
+
+#### Types of Installation
+
+Consider the scenario, where you have 2 following namespaces in same cluster:
+
+- `dev-botiga-app` - For Development Environment
+- `prod-botiga-app` - For Production Environment
+
+- Now, you have 2 options to install ingress controller:
+  - An Isolated Ingress Controller for each namespace
+  - A Shared Ingress Controller for both namespaces
+
+##### Isolated Ingress Controller
+
+- `Not Recommended`
+- This could be easily achieved by adding ingress as a dependency in `chart.yaml`
+
+```yaml
+dependencies:
+  - name: ingress-nginx
+    version: "4.8.0" # Specify the version you need
+    repository: "https://kubernetes.github.io/ingress-nginx"
+    condition: ingress.enabled
+```
+
+- Then, run the following command to install the chart:
+
+```bash
+helm dependency update .
+```
+
+- This will add the ingress chart to your `charts folder` & will also add a `chart.lock` file
+- Post this, you have to follow the [common steps](#common-steps) of installation
+- `Cons`:
+  - More Expensive as multiple ingress controllers are running
+  - Harder to manage
+  - Also, need some external setup like a load balancer to route traffic to `expected` ingress controller
+
+##### Shared Ingress Controller
+
+- `Recommended`
+- In this case, you install a Cluster Wide Ingress Controller
+- Create a namespace for ingress controller:
+
+```bash
+kubectl create namespace ingress-nginx
+```
+
+- Instal ingress controller in this namespace:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install cluster-ingress ingress-nginx/ingress-nginx -n ingress
+```
+
+- Now, follow the [common steps](#common-steps) of installation to install dev & prod charts
+
+##### Ingress Controller Overview
+
+The `ingress-nginx` is a versatile ingress controller capable of managing Ingress resources across multiple namespaces.
+
+- **Workings:**
+  - `Monitoring`: It's set to watch all namespaces by default, ensuring real-time updates based on Ingress changes across the cluster.
+  - `Routing`: Dynamically routes incoming traffic by processing Ingress resource rules, using the underlying NGINX instance.
+  - `Isolation`: While it serves multiple namespaces, there's no overlap or interference between rules of different namespaces.
+- **Key Benefits:**
+  - `Efficiency`: Consolidates resources by eliminating the need for individual controllers in each namespace.
+  - `Central Management`: A unified control point makes management, monitoring, and updating straightforward.
+  - `Uniformity`: Helps maintain standard configurations, plugins, and templates across different applications.
 
 ### Uninstall Chart
 
