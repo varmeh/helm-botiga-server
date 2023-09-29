@@ -4,6 +4,7 @@
   - [Debug Templates](#debug-templates)
   - [Installation](#installation)
     - [Common Steps](#common-steps)
+      - [Image Architecture](#image-architecture)
       - [Create Namespace](#create-namespace)
       - [Set Default Namespace](#set-default-namespace)
       - [Create Secrets](#create-secrets)
@@ -36,22 +37,42 @@ helm template prod . --debug > templates.yaml
 
 ### Common Steps
 
+#### Image Architecture
+
+- The image architecture should match the node architecture
+- To check the node architecture, run the following command:
+
+```bash
+kubectl get nodes -o=jsonpath='{.items[0].status.nodeInfo.architecture}'
+```
+
+- Then, ensure that you have a docker image with the same architecture
+- To create an image with a specific architecture, you can use the following command:
+
+```bash
+docker buildx create --use
+docker buildx build --platform linux/amd64 -t varunbotiga/botiga-server:1.0.0-amd64 . --push
+```
+
+- Platform could have multiple values like `linux/amd64,linux/arm64,linux/arm/v7`
+- Image Name recommended format is `<docker-username>/<image-name>:<version>-<architecture>`
+
 #### Create Namespace
 
 - As this cluster could be used for multiple applications with different environments, please create a namespace for the application
 - Nomenclature the namespace as `<env>-<app-name>`
 
 ```bash
-kubectl create namespace prod-botiga-backend
+kubectl create namespace prod-botiga
 ```
 
 #### Set Default Namespace
 
 - This steps is optional
-- It simply avoids the need of adding `-n prod-botiga-backend` to every `kubectl` command
+- It simply avoids the need of adding `-n prod-botiga` to every `kubectl` command
 
 ```bash
-kubectl config set-context --current --namespace=prod-botiga-backend
+kubectl config set-context --current --namespace=prod-botiga
 ```
 
 #### Create Secrets
@@ -64,7 +85,7 @@ kubectl config set-context --current --namespace=prod-botiga-backend
 kubectl create secret docker-registry docker-registry-secret \
   --docker-server=docker.io \
   --docker-username=varunbotiga \
-  --docker-password=your-password \
+  --docker-password=<Your-Docker-Registry-Token> \
   --docker-email=varun@botiga.app
 ```
 
@@ -74,7 +95,7 @@ kubectl create secret docker-registry docker-registry-secret \
 - This approach gives us flexibility to set custom secret values based on environments
 
 ```bash
-kubectl create secret generic app-secret --from-env-file=.env
+kubectl create secret generic app-secret --from-env-file=.env.prod
 ```
 
 ##### Verifying Secrets
@@ -82,7 +103,7 @@ kubectl create secret generic app-secret --from-env-file=.env
 - To verify the secrets, you can use the following command:
 
 ```bash
-kubectl describe secrets app-secrets
+kubectl describe secrets app-secret
 ```
 
 - This will not show the actual secret values, but will give you other metadata like when the secret was created.
@@ -91,7 +112,7 @@ kubectl describe secrets app-secrets
 
 ```bash
 kubectl get secret docker-registry-secret -o jsonpath="{.data.\.dockerconfigjson}" | base64 --decode
-kubectl get secret app-secrets -o jsonpath="{.data.NODE_ENV}" | base64 --decode
+kubectl get secret app-secret -o jsonpath="{.data.NODE_ENV}" | base64 --decode
 ```
 
 ##### Mounting Firebase SDK File
@@ -156,7 +177,7 @@ deployment:
 - Then, install the chart:
 
 ```bash
-helm install prod .
+helm install prod . -f values.prod.yaml
 ```
 
 - If installation is successful and `service.type` is `NodePort`, then, service for Docker-Desktop could be tested at `http://localhost:<node-port>`
