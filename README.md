@@ -19,7 +19,8 @@
         - [Isolated Ingress Controller](#isolated-ingress-controller)
         - [Shared Ingress Controller](#shared-ingress-controller)
         - [Ingress Controller Overview](#ingress-controller-overview)
-    - [Uninstall Chart](#uninstall-chart)
+  - [SSL](#ssl)
+  - [Uninstall Chart](#uninstall-chart)
   - [Debug Installation](#debug-installation)
 
 ## Debug Templates
@@ -265,7 +266,7 @@ helm dependency update .
 - Create a namespace for ingress controller:
 
 ```bash
-kubectl create namespace ingress-nginx
+kubectl create namespace ingress
 ```
 
 - Instal ingress controller in this namespace:
@@ -291,7 +292,40 @@ The `ingress-nginx` is a versatile ingress controller capable of managing Ingres
   - `Central Management`: A unified control point makes management, monitoring, and updating straightforward.
   - `Uniformity`: Helps maintain standard configurations, plugins, and templates across different applications.
 
-### Uninstall Chart
+## SSL
+
+- `SSL Termination` could be managed at 2 levels:
+  - `External Load Balancer` - Provisioned by Cloud Provider
+  - `Ingress Controller` - Provisioned by US
+
+Following table explains the pros & cons of both approaches:
+
+Certainly! Here's a comparison table of SSL termination at an external load balancer (like DigitalOcean Load Balancer) versus SSL termination at the ingress controller (e.g., ingress-nginx):
+
+| Feature/Aspect                    | External Load Balancer Termination | Ingress Controller Termination  |
+|-----------------------------------|------------------------------------|---------------------------------|
+| `SSL Processing Overhead`       | Offloaded to Load Balancer        | Handled by Kubernetes nodes     |
+| `SSL Certificate Management`    | Managed externally (*manual* or *specific integrations*) | Managed within the cluster with `cert-manager` |
+| `Connection Encryption`         | Encrypted only up to the Load Balancer | Encrypted end-to-end up to the pod |
+| `Centralized SSL Management`    | Yes (*all certs managed in one place*) | No (*each ingress might have its own certs*) |
+| `Cost`                          | Potential extra costs for LB-based SSL processing | Might save on LB costs but use more node resources |
+| `Ease of Setup`                 | Varies & Depends on Cloud Provider | Consistent with `cert-manager` |
+| `End-to-end Encryption`         | No (traffic decrypted at LB)      | Yes (fully encrypted up to the pod) |
+| `Integration with Let's Encrypt`| Manual or specific integrations  | Direct (e.g., `cert-manager`)    |
+| `Auto Renewal of Certificates`  | Depends on provider               | Generally automated with `cert-manager` |
+| `Latency`                       | Potential reduction as SSL processing is offloaded | Slight increase due to processing within the cluster |
+
+- How-to Docs for both aproaches:
+  - [SSL at Digital Ocean External Load Balancer](./docs/Ssl@Elb.md)
+  - [SSL Using Ingress Controller](./docs/Ssl@Ingress.md)
+
+- For this project, we'll go with `SSL Termination at Ingress Controller` following reasons:
+  - Fully Automated Setup with `cert-manager`
+  - Auto Renewal of Certificates
+  - Consistent across all Cloud Providers
+  - Integration with `Let's Encrypt`
+
+## Uninstall Chart
 
 ```bash
 helm uninstall prod

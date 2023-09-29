@@ -10,6 +10,7 @@
 # Exclude test and docs
 test/
 docs/
+tmp/
 
 # Exclude README and other Markdown files
 *.md
