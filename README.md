@@ -3,7 +3,9 @@
 - [Helm Chart for Botiga Backend](#helm-chart-for-botiga-backend)
   - [Debug Templates](#debug-templates)
   - [Installation](#installation)
-    - [Common Steps](#common-steps)
+    - [1. Ingress Controller](#1-ingress-controller)
+    - [2. Cert-Manager](#2-cert-manager)
+    - [3. App Installation](#3-app-installation)
       - [Image Architecture](#image-architecture)
       - [Create Namespace](#create-namespace)
       - [Set Default Namespace](#set-default-namespace)
@@ -12,14 +14,9 @@
         - [App Secrets](#app-secrets)
         - [Verifying Secrets](#verifying-secrets)
         - [Mounting Firebase SDK File](#mounting-firebase-sdk-file)
-    - [Install App with a NodePort Service](#install-app-with-a-nodeport-service)
-    - [Install App with Ingress](#install-app-with-ingress)
-      - [Modifications in `values.yaml`](#modifications-in-valuesyaml)
-      - [Types of Installation](#types-of-installation)
-        - [Isolated Ingress Controller](#isolated-ingress-controller)
-        - [Shared Ingress Controller](#shared-ingress-controller)
-        - [Ingress Controller Overview](#ingress-controller-overview)
-  - [SSL](#ssl)
+      - [Install App](#install-app)
+        - [Local Installation](#local-installation)
+        - [Cloud Installation](#cloud-installation)
   - [Uninstall Chart](#uninstall-chart)
   - [Debug Installation](#debug-installation)
 
@@ -28,7 +25,7 @@
 - To debug the templates, you can use the following command:
 
 ```bash
-helm template prod . --debug > templates.yaml
+helm template prod -f value.prod.yaml . --debug > tmp/templates.yaml
 ```
 
 - This will dump the template manifests into a file called `templates.yaml` in the current directory
@@ -36,7 +33,131 @@ helm template prod . --debug > templates.yaml
 
 ## Installation
 
-### Common Steps
+- Installation on the Cloud Provider is a 3 part process:
+  1. [Ingress Controller](#1-ingress-controller) - A Cluster Wide Ingress Controller for all namespaces
+  2. [Cert-Manager](#2-cert-manager) - A Cluster Wide Cert-Manager for all namespaces
+  3. [App Installation](#3-app-installation) - Installation of the App in a specific namespace
+- 1st 2 steps are one time setup & could be skipped if already done
+- 1st 2 steps are also `OPTIONAL` for testing on a local machine
+
+---
+
+### 1. Ingress Controller
+
+- `Ingress Controller` is a combination of resources that routes traffic from clound provider to the application
+- To understand it better, refer [documentation](https://varmeh.github.io/tech-docs/docs/deployment/k8s/K8sPrimer.html#ingress)
+
+- There are 2 major ingresses available:
+
+| Ingress Name               | Description                                              | URL                                                      | Cost                    |
+|----------------------------|----------------------------------------------------------|----------------------------------------------------------|-------------------------|
+| Kubernetes/ingress-nginx   | Open Source Ingress managed by K8s Community.            | [Link](https://github.com/kubernetes/ingress-nginx)      | Totally Free            |
+| Nginx-Ingress              | From Nginx Inc. Free with limited features.              | [Link](https://docs.nginx.com/nginx-ingress-controller)  | Free (Limited) / Nginx+ |
+
+- Going with `Kubernetes/ingress-nginx`, as it's free & does not require any additional setup
+<!-- 
+#### Modifications in `values.yaml`
+
+```yaml
+deployment:
+  service:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+```
+
+- Change `service.type` to `ClusterIP` and remove `nodePort` as it is not required for ingress
+- Set `ingress.enabled` to `true` to enable ingress
+- Routes to it could be configured in `ingress.hosts` in `values.yaml`
+- This will install an `ingress resource` which specifies the routes to the application
+- To test it on local machine, you need to add the following entry to your `/etc/hosts` file:
+
+```bash
+127.0.0.1 chart.local
+```
+
+- Chart.local is your defined `ingress.hosts[0].host` url in values.yaml file
+- Post the changes, follow the [commons steps](#common-steps) -->
+
+- `Ingress Controller` would be installated at `Cluster Level` as a `Shared resource`
+- This shared ingress controller would manage the `routing for all the namespaces` in the cluster
+- All a namespace needs to do is to create an `ingress resource` with the required routes
+
+- To begin, create a namespace for ingress controller:
+
+```bash
+kubectl create namespace ingress
+```
+
+- Instal ingress controller in this namespace:
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install cluster-ingress ingress-nginx/ingress-nginx -n ingress
+```
+
+- This will also provision a `External Load Balancer(ELB)` in the cloud provider which will be used to route traffic to the k8s cluster
+
+### 2. Cert-Manager
+
+- Cert-Manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
+- It is used to manage SSL Certificates for the application
+- `SSL Termination` in k8s can be done at 2 levels:
+  - `External Load Balancer` - Provisioned by Cloud Provider
+  - `Ingress Controller`
+
+Following table explains the pros & cons of both approaches:
+
+| Feature/Aspect                    | External Load Balancer Termination | Ingress Controller Termination  |
+|-----------------------------------|------------------------------------|---------------------------------|
+| `SSL Processing Overhead`       | Offloaded to Load Balancer        | Handled by Kubernetes nodes     |
+| `SSL Certificate Management`    | Managed externally (*manual* or *specific integrations*) | Managed within the cluster with `cert-manager` |
+| `Connection Encryption`         | Encrypted only up to the Load Balancer | Encrypted end-to-end up to the pod |
+| `Centralized SSL Management`    | Yes (*all certs managed in one place*) | No (*each ingress might have its own certs*) |
+| `Cost`                          | Potential extra costs for LB-based SSL processing | Might save on LB costs but use more node resources |
+| `Ease of Setup`                 | Varies & Depends on Cloud Provider | Consistent with `cert-manager` |
+| `End-to-end Encryption`         | No (traffic decrypted at LB)      | Yes (fully encrypted up to the pod) |
+| `Integration with Let's Encrypt`| Manual or specific integrations  | Direct (e.g., `cert-manager`)    |
+| `Auto Renewal of Certificates`  | Depends on provider               | Generally automated with `cert-manager` |
+| `Latency`                       | Potential reduction as SSL processing is offloaded | Slight increase due to processing within the cluster |
+
+- For this project, we'll go with `SSL Termination at Ingress Controller` following reasons:
+  - Fully Automated Setup with `cert-manager`
+  - Auto Renewal of Certificates
+  - Consistent across all Cloud Providers
+  - Integration with `Let's Encrypt`
+
+- `Installation Process`:
+
+- Add the Jetstack Helm repository:
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+```
+
+- Install the Cert-Manager Helm chart:
+
+```bash
+helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.13.1 --set installCRDs=true 
+```
+
+- `Docs for Reference`: following docs illustrate the steps for SSL Managament at ELB & Ingress-Controller seperately:
+  - [SSL at Digital Ocean External Load Balancer](./docs/Ssl@Elb.md)
+  - [SSL Using Ingress Controller](./docs/Ssl@Ingress.md)
+
+### 3. App Installation
+
+- Installation would vary based on underlying infra
+- For a `cloud provider`, please ensure the deployment of `Ingress Controller` & `Cert-Manager` is complete
+- Use following values.yaml file, based on the infra:
+  - `values.yaml` - For local installation (*Docker Desktop*)
+  - `values.dev.yaml` - For Development Environment on Cloud Provider
+  - `values.prod.yaml` - For Production Environment on Cloud Provider
 
 #### Image Architecture
 
@@ -61,7 +182,7 @@ docker buildx build --platform linux/amd64 -t varunbotiga/botiga-server:1.0.0-am
 #### Create Namespace
 
 - As this cluster could be used for multiple applications with different environments, please create a namespace for the application
-- Nomenclature the namespace as `<env>-<app-name>`
+- Nomenclature the namespace as `<env>-<app-name>`, e.g. `dev-botiga` `prod-botiga`
 
 ```bash
 kubectl create namespace prod-botiga
@@ -160,170 +281,28 @@ kubectl create secret generic firebase-sdk --from-file=firebase-sdk.json=<path-t
           value: "/etc/firebase-sdk/firebase-sdk.json"
     ```
 
----
+#### Install App
 
-### Install App with a NodePort Service
+##### Local Installation
 
-- *Recommnended only for your local environment*  
-- Set following values in your `values.yaml` file:
+- For local installation `ingress.enabled` is set to `false` in `values.yaml`
+- `deployment.service.type` is set to `NodePort` with a `nodeport` value.
 
-```yaml
-deployment:
-  service:
-    type: NodePort
-    port: 80
-    nodePort: 30000
+```bash
+helm install prod . -f values.yaml
 ```
 
-- Then, install the chart:
+- If installation is successful and `service.type` is `NodePort`, then, service for Docker-Desktop could be tested at `http://localhost:<node-port>`
+
+##### Cloud Installation
+
+- To install the app, run the following command:
 
 ```bash
 helm install prod . -f values.prod.yaml
 ```
 
-- If installation is successful and `service.type` is `NodePort`, then, service for Docker-Desktop could be tested at `http://localhost:<node-port>`
-
 ---
-
-### Install App with Ingress
-
-- There are 2 major ingresses available:
-
-| Ingress Name               | Description                                              | URL                                                      | Cost                    |
-|----------------------------|----------------------------------------------------------|----------------------------------------------------------|-------------------------|
-| Kubernetes/ingress-nginx   | Open Source Ingress managed by K8s Community.            | [Link](https://github.com/kubernetes/ingress-nginx)      | Totally Free            |
-| Nginx-Ingress              | From Nginx Inc. Free with limited features.              | [Link](https://docs.nginx.com/nginx-ingress-controller)  | Free (Limited) / Nginx+ |
-
-- Going with `Kubernetes/ingress-nginx`, as it's free & does not require any additional setup
-
-#### Modifications in `values.yaml`
-
-```yaml
-deployment:
-  service:
-    type: ClusterIP
-    port: 80
-
-ingress:
-  enabled: true
-  className: "nginx"
-```
-
-- Change `service.type` to `ClusterIP` and remove `nodePort` as it is not required for ingress
-- Set `ingress.enabled` to `true` to enable ingress
-- Routes to it could be configured in `ingress.hosts` in `values.yaml`
-- This will install an `ingress resource` which specifies the routes to the application
-- To test it on local machine, you need to add the following entry to your `/etc/hosts` file:
-
-```bash
-127.0.0.1 chart.local
-```
-
-- Chart.local is your defined `ingress.hosts[0].host` url in values.yaml file
-- Post the changes, follow the [commons steps](#common-steps)
-
-#### Types of Installation
-
-Consider the scenario, where you have 2 following namespaces in same cluster:
-
-- `dev-botiga-app` - For Development Environment
-- `prod-botiga-app` - For Production Environment
-
-- Now, you have 2 options to install ingress controller:
-  - An Isolated Ingress Controller for each namespace
-  - A Shared Ingress Controller for both namespaces
-
-##### Isolated Ingress Controller
-
-- `Not Recommended`
-- This could be easily achieved by adding ingress as a dependency in `chart.yaml`
-
-```yaml
-dependencies:
-  - name: ingress-nginx
-    version: "4.8.0" # Specify the version you need
-    repository: "https://kubernetes.github.io/ingress-nginx"
-    condition: ingress.enabled
-```
-
-- Then, run the following command to install the chart:
-
-```bash
-helm dependency update .
-```
-
-- This will add the ingress chart to your `charts folder` & will also add a `chart.lock` file
-- Post this, you have to follow the [common steps](#common-steps) of installation
-- `Cons`:
-  - More Expensive as multiple ingress controllers are running
-  - Harder to manage
-  - Also, need some external setup like a load balancer to route traffic to `expected` ingress controller
-
-##### Shared Ingress Controller
-
-- `Recommended`
-- In this case, you install a Cluster Wide Ingress Controller
-- Create a namespace for ingress controller:
-
-```bash
-kubectl create namespace ingress
-```
-
-- Instal ingress controller in this namespace:
-
-```bash
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo update
-helm install cluster-ingress ingress-nginx/ingress-nginx -n ingress
-```
-
-- Now, follow the [common steps](#common-steps) of installation to install dev & prod charts
-
-##### Ingress Controller Overview
-
-The `ingress-nginx` is a versatile ingress controller capable of managing Ingress resources across multiple namespaces.
-
-- **Workings:**
-  - `Monitoring`: It's set to watch all namespaces by default, ensuring real-time updates based on Ingress changes across the cluster.
-  - `Routing`: Dynamically routes incoming traffic by processing Ingress resource rules, using the underlying NGINX instance.
-  - `Isolation`: While it serves multiple namespaces, there's no overlap or interference between rules of different namespaces.
-- **Key Benefits:**
-  - `Efficiency`: Consolidates resources by eliminating the need for individual controllers in each namespace.
-  - `Central Management`: A unified control point makes management, monitoring, and updating straightforward.
-  - `Uniformity`: Helps maintain standard configurations, plugins, and templates across different applications.
-
-## SSL
-
-- `SSL Termination` could be managed at 2 levels:
-  - `External Load Balancer` - Provisioned by Cloud Provider
-  - `Ingress Controller` - Provisioned by US
-
-Following table explains the pros & cons of both approaches:
-
-Certainly! Here's a comparison table of SSL termination at an external load balancer (like DigitalOcean Load Balancer) versus SSL termination at the ingress controller (e.g., ingress-nginx):
-
-| Feature/Aspect                    | External Load Balancer Termination | Ingress Controller Termination  |
-|-----------------------------------|------------------------------------|---------------------------------|
-| `SSL Processing Overhead`       | Offloaded to Load Balancer        | Handled by Kubernetes nodes     |
-| `SSL Certificate Management`    | Managed externally (*manual* or *specific integrations*) | Managed within the cluster with `cert-manager` |
-| `Connection Encryption`         | Encrypted only up to the Load Balancer | Encrypted end-to-end up to the pod |
-| `Centralized SSL Management`    | Yes (*all certs managed in one place*) | No (*each ingress might have its own certs*) |
-| `Cost`                          | Potential extra costs for LB-based SSL processing | Might save on LB costs but use more node resources |
-| `Ease of Setup`                 | Varies & Depends on Cloud Provider | Consistent with `cert-manager` |
-| `End-to-end Encryption`         | No (traffic decrypted at LB)      | Yes (fully encrypted up to the pod) |
-| `Integration with Let's Encrypt`| Manual or specific integrations  | Direct (e.g., `cert-manager`)    |
-| `Auto Renewal of Certificates`  | Depends on provider               | Generally automated with `cert-manager` |
-| `Latency`                       | Potential reduction as SSL processing is offloaded | Slight increase due to processing within the cluster |
-
-- How-to Docs for both aproaches:
-  - [SSL at Digital Ocean External Load Balancer](./docs/Ssl@Elb.md)
-  - [SSL Using Ingress Controller](./docs/Ssl@Ingress.md)
-
-- For this project, we'll go with `SSL Termination at Ingress Controller` following reasons:
-  - Fully Automated Setup with `cert-manager`
-  - Auto Renewal of Certificates
-  - Consistent across all Cloud Providers
-  - Integration with `Let's Encrypt`
 
 ## Uninstall Chart
 
