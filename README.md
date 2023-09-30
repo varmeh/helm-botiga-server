@@ -92,15 +92,26 @@ ingress:
 kubectl create namespace ingress
 ```
 
-- Instal ingress controller in this namespace:
+- Add the ingress-nginx Helm repository:
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
+```
+
+- Install ingress controller in the namespace:
+
+```bash
 helm install cluster-ingress ingress-nginx/ingress-nginx -n ingress
 ```
 
 - This will also provision a `External Load Balancer(ELB)` in the cloud provider which will be used to route traffic to the k8s cluster
+
+- To see all resources created by Ingress Controller & debug:
+
+```bash
+kubectl get all,configmaps,secrets -n ingress
+```
 
 ### 2. Cert-Manager
 
@@ -300,6 +311,45 @@ helm install prod . -f values.yaml
 
 ```bash
 helm install prod . -f values.prod.yaml
+```
+
+- This will install the app in the `prod-botiga` namespace
+- Next step is to create a `A Record` in the DNS provider for the domain name to direct traffic to the `ELB IP Address`
+- Also, check if the `SSL Certificate` is provisioned by `Cert-Manager` for the domain name
+
+```bash
+kubectl get certificates
+kubectl describe certificate prod-botiga-tls
+```
+
+- Following resouces would be created in the app namespace:
+
+```bash
+kubectl get all,configmaps,secrets
+
+NAME                                      READY   STATUS    RESTARTS   AGE
+pod/dev-botiga-backend-77fbd9b886-pfh4l   1/1     Running   0          29m
+pod/dev-botiga-backend-77fbd9b886-whwc7   1/1     Running   0          23h
+
+NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)   AGE
+service/dev-botiga-backend   ClusterIP   10.245.245.161   <none>        80/TCP    23h
+
+NAME                                 READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/dev-botiga-backend   2/2     2            2           23h
+
+NAME                                            DESIRED   CURRENT   READY   AGE
+replicaset.apps/dev-botiga-backend-77fbd9b886   2         2         2       23h
+
+NAME                         DATA   AGE
+configmap/kube-root-ca.crt   1      24h
+
+NAME                               TYPE                             DATA   AGE
+secret/app-secret                  Opaque                           20     24h
+secret/dev-botiga-tls              kubernetes.io/tls                2      28m
+secret/docker-registry-secret      kubernetes.io/dockerconfigjson   1      24h
+secret/firebase-sdk                Opaque                           1      24h
+secret/letsencrypt-dev             Opaque                           1      29m
+secret/sh.helm.release.v1.dev.v1   helm.sh/release.v1               1      23h
 ```
 
 ---

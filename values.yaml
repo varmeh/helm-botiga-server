@@ -7,9 +7,6 @@ replicaCount: 1
 nameOverride: ""
 fullnameOverride: ""
 
-imagePullSecrets:
-  - name: docker-registry-secret
-
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -147,7 +144,6 @@ ingress:
   className: "nginx"
   annotations:
     kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
   hosts:
     - host: chart.local
       paths:
@@ -184,3 +180,10 @@ tolerations: []
 affinity: {}
 
 configmap:
+
+# Issuer.yaml file
+certManager:
+  issuer:
+    enabled: false
+    acmeServerURL: "https://acme-v02.api.letsencrypt.org/directory"
+    email: "youremail@example.com"

@@ -1,0 +1,22 @@
+# templates/issuer.yaml
+{{- if .Values.certManager.issuer.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-{{ .Release.Name }}
+spec:
+  acme:
+    # The ACME server URL
+    server: {{ .Values.certManager.issuer.acmeServerURL }}
+    # Email address used for ACME registration
+    email: {{ .Values.certManager.issuer.email }}
+    # Name of a secret used to store the ACME account private key
+    # If the secret does not exist, it will be created
+    privateKeySecretRef:
+      name: letsencrypt-{{ .Release.Name }}
+    # Enable the HTTP-01 challenge provider  
+    solvers:
+    - http01:
+        ingress:
+          class: {{ .Values.ingress.className }}
+{{- end }}
