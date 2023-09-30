@@ -29,11 +29,7 @@ helm repo update
 Install the Cert-Manager Helm chart:
 
 ```bash
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.7.1 \
-  --set installCRDs=true
+helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version v1.13.1 --set installCRDs=true 
 ```
 
 ## 2. Create a Let's Encrypt Issuer or ClusterIssuer
